@@ -1,48 +1,106 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import altair as alt
 
-# تصميم احترافي
-st.set_page_config(page_title="Mobile Intelligence 2026", layout="wide", initial_sidebar_state="expanded")
+# 1. إعدادات الصفحة
+st.set_page_config(page_title="Mobile Price AI", page_icon="📱", layout="wide")
 
-# إضافة CSS مخصص لجعل الموقع يبدو كأنه تطبيق مدفوع
+# 2. CSS للواجهة
 st.markdown("""
     <style>
-    .main { background-color: #f5f7f9; }
-    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
-    .prediction-box { padding: 20px; border-radius: 10px; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .stApp {
+        background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
+                    url("https://images.unsplash.com/photo-1616348436168-de43ad0db179?auto=format&fit=crop&q=80&w=2000");
+        background-size: cover;
+        background-position: center;
+        color: white;
+    }
+    .main-container {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    h1, h2, h3 {
+        color: #ffffff !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 20px;
+        width: 100%;
+        border: none;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #45a049;
+        transform: scale(1.02);
+    }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# استدعاء الملفات
+# 3. تحميل الموديل والداتا
+@st.cache_data
+def load_data():
+    return pd.read_csv('mobile_data_cleaned_2026.csv')
+
 @st.cache_resource
-def load_all():
-    df = pd.read_csv('mobile_data_cleaned_2026.csv')
-    model = joblib.load('mobile_model.pkl')
-    return df, model
+def load_model():
+    return joblib.load('mobile_model.pkl')
 
-df, model = load_all()
+try:
+    data = load_data()
+    model = load_model()
 
-# هيدر الموقع
-st.title("🚀 Mobile Intelligence Hub")
-st.markdown("---")
+    # العنوان الرئيسي
+    st.title("📱 AI Mobile Valuation Hub")
+    st.markdown("### Predict market value based on 1,943 analyzed devices")
+    st.write("---")
 
-# تقسيم الصفحة (يسار للتوقع - يمين للإحصائيات)
-left_col, right_col = st.columns([1, 2])
+    # تقسيم الشاشة لعمودين
+    col1, col2 = st.columns([1, 1.5])
 
-with left_col:
-    st.subheader("🔮 Price Predictor")
-    with st.container():
-        ram = st.select_slider("RAM Capacity (GB)", options=[1, 2, 4, 6, 8, 12, 16], value=8)
-        battery = st.slider("Battery (mAh)", 1000, 7000, 4500)
-        camera = st.number_input("Main Camera (MP)", 2, 200, 48)
-        weight = st.number_input("Device Weight (g)", 100, 500, 190)
-        
-        if st.button("Calculate Market Value"):
-            res = model.predict([[battery, ram, weight, camera]])
-            st.success(f"Estimated Value: €{res[0]:.2f}")
+    with col1:
+        st.subheader("🔧 Technical Specs")
+        ram = st.slider("RAM (GB)", 1, 64, 8, help="Amount of RAM in GB, affects performance")
+        battery = st.slider("Battery (mAh)", 1000, 7000, 4500, help="Battery capacity in milliampere-hours")
+        camera = st.slider("Main Camera (MP)", 2, 200, 50, help="Main camera resolution in megapixels")
+        weight = st.number_input("Weight (grams)", 100, 500, 190, help="Device weight in grams")
 
-with right_col:
-    st.subheader("📊 Market Insights")
-    # إضافة رسوم بيانية توضح توزيع الأسعار في الـ 1943 موبايل
-    st.bar_chart(df['brand'].value_counts().head(10))
+        if weight < 100 or weight > 500:
+            st.warning("Please enter a realistic weight!")
+
+        predict_btn = st.button("Calculate Market Value")
+
+    with col2:
+        st.subheader("📊 Market Insights")
+        # عرض رسم بياني متطور
+        top_brands = data['Brand'].value_counts().head(10).reset_index()
+        top_brands.columns = ['Brand', 'Count']
+        chart = alt.Chart(top_brands).mark_bar(color="#4CAF50").encode(
+            x=alt.X('Brand', sort='-y'),
+            y='Count',
+            tooltip=['Brand', 'Count']
+        ).properties(width=500, height=400)
+        st.altair_chart(chart, use_container_width=True)
+
+    # مساحة لعرض النتيجة أسفل الأعمدة
+    result_placeholder = st.empty()
+
+    if predict_btn:
+        input_data = pd.DataFrame([[ram, battery, camera, weight]], 
+                                  columns=['RAM', 'Battery', 'Camera', 'Weight'])
+        prediction = model.predict(input_data)[0]
+        result_placeholder.success(f"### Estimated Value: €{prediction:,.2f}")
+        result_placeholder.info("This price is based on the 2026 market trends learned by the AI.")
+
+except Exception as e:
+    st.error(f"Error loading model or data: {e}")
+    st.info("Make sure 'mobile_model.pkl' and 'mobile_data_cleaned_2026.csv' are in the same folder.")
+
+# 4. Footer
+st.write("---")
+st.markdown("Developed by [Goda Emad](https://www.linkedin.com/in/goda-emad/) | 2026 AI Portfolio")
