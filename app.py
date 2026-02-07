@@ -3,10 +3,10 @@ import pandas as pd
 import joblib
 import altair as alt
 
-# 1. إعدادات الصفحة
+# 1️⃣ إعدادات الصفحة
 st.set_page_config(page_title="Mobile Price AI", page_icon="📱", layout="wide")
 
-# 2. CSS للواجهة
+# 2️⃣ CSS للواجهة
 st.markdown("""
     <style>
     .stApp {
@@ -42,7 +42,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. تحميل الموديل والداتا
+# 3️⃣ تحميل الموديل والداتا
 @st.cache_data
 def load_data():
     return pd.read_csv('mobile_data_cleaned_2026.csv')
@@ -55,6 +55,9 @@ try:
     data = load_data()
     model = load_model()
 
+    # طباعة الأعمدة للتأكد
+    # st.write(data.columns)
+
     # العنوان الرئيسي
     st.title("📱 AI Mobile Valuation Hub")
     st.markdown("### Predict market value based on 1,943 analyzed devices")
@@ -65,20 +68,22 @@ try:
 
     with col1:
         st.subheader("🔧 Technical Specs")
-        ram = st.slider("RAM (GB)", 1, 64, 8, help="Amount of RAM in GB, affects performance")
-        battery = st.slider("Battery (mAh)", 1000, 7000, 4500, help="Battery capacity in milliampere-hours")
+        ram = st.slider("RAM (GB)", 1, 64, 8, help="Amount of RAM in GB")
+        battery = st.slider("Battery (mAh)", 1000, 7000, 4500, help="Battery capacity in mAh")
         camera = st.slider("Main Camera (MP)", 2, 200, 50, help="Main camera resolution in megapixels")
         weight = st.number_input("Weight (grams)", 100, 500, 190, help="Device weight in grams")
 
-        if weight < 100 or weight > 500:
-            st.warning("Please enter a realistic weight!")
+        # اختيارات إضافية
+        brand = st.selectbox("Brand", sorted(data['brand'].unique()), help="Choose Brand")
+        os_choice = st.selectbox("Operating System", sorted(data['OS'].dropna().unique()), help="Select OS")
+        chipset = st.selectbox("Chipset", sorted(data['Chipset'].dropna().unique()), help="Select Chipset")
 
         predict_btn = st.button("Calculate Market Value")
 
     with col2:
         st.subheader("📊 Market Insights")
-        # عرض رسم بياني متطور
-        top_brands = data['Brand'].value_counts().head(10).reset_index()
+        # رسم بياني للـ 10 Brands الأكثر شيوعًا
+        top_brands = data['brand'].value_counts().head(10).reset_index()
         top_brands.columns = ['Brand', 'Count']
         chart = alt.Chart(top_brands).mark_bar(color="#4CAF50").encode(
             x=alt.X('Brand', sort='-y'),
@@ -87,20 +92,23 @@ try:
         ).properties(width=500, height=400)
         st.altair_chart(chart, use_container_width=True)
 
-    # مساحة لعرض النتيجة أسفل الأعمدة
+    # مكان النتيجة أسفل الأعمدة
     result_placeholder = st.empty()
 
     if predict_btn:
-        input_data = pd.DataFrame([[ram, battery, camera, weight]], 
-                                  columns=['RAM', 'Battery', 'Camera', 'Weight'])
+        input_data = pd.DataFrame([[ram, battery, camera, weight]],
+                                  columns=['RAM_GB', 'battery_mAh', 'primary_camera_MP', 'weight_g'])
         prediction = model.predict(input_data)[0]
         result_placeholder.success(f"### Estimated Value: €{prediction:,.2f}")
-        result_placeholder.info("This price is based on the 2026 market trends learned by the AI.")
+        result_placeholder.info("This price is based on 2026 market trends learned by the AI.")
 
 except Exception as e:
     st.error(f"Error loading model or data: {e}")
     st.info("Make sure 'mobile_model.pkl' and 'mobile_data_cleaned_2026.csv' are in the same folder.")
 
-# 4. Footer
+# 4️⃣ Footer احترافي مع اسمك وروابطك
 st.write("---")
-st.markdown("Developed by [Goda Emad](https://www.linkedin.com/in/goda-emad/) | 2026 AI Portfolio")
+st.markdown("""
+Developed by **Goda Emad** |  
+[GitHub](https://github.com/Goda-Emad) | [LinkedIn](https://www.linkedin.com/in/goda-emad/) | 2026 AI Portfolio
+""")
