@@ -55,13 +55,20 @@ try:
     data = load_data()
     model = load_model()
 
-    # طباعة الأعمدة للتأكد
-    # st.write(data.columns)
+    features = model.feature_names_in_  # الحصول على أسماء الأعمدة اللي اتدرب عليها الموديل
 
     # العنوان الرئيسي
     st.title("📱 AI Mobile Valuation Hub")
     st.markdown("### Predict market value based on 1,943 analyzed devices")
     st.write("---")
+
+    # 4️⃣ Info Box لشرح أهمية الموديل
+    st.info("""
+    **Why this model is important:**  
+    1️⃣ **The Brain**: The model stores patterns from 1,943 devices, learning the rules connecting specs to price.  
+    2️⃣ **Serialization (.pkl)**: Enables fast loading and easy transfer to cloud without retraining.  
+    3️⃣ **Prediction Engine**: Converts user inputs like RAM, Battery, Camera, and Weight into a market price instantly.
+    """)
 
     # تقسيم الشاشة لعمودين
     col1, col2 = st.columns([1, 1.5])
@@ -70,11 +77,11 @@ try:
         st.subheader("🔧 Technical Specs")
         ram = st.slider("RAM (GB)", 1, 64, 8, help="Amount of RAM in GB")
         battery = st.slider("Battery (mAh)", 1000, 7000, 4500, help="Battery capacity in mAh")
-        camera = st.slider("Main Camera (MP)", 2, 200, 50, help="Main camera resolution in megapixels")
+        camera = st.slider("Main Camera (MP)", 2, 200, 50, help="Main camera resolution in MP")
         weight = st.number_input("Weight (grams)", 100, 500, 190, help="Device weight in grams")
 
         # اختيارات إضافية
-        brand = st.selectbox("Brand", sorted(data['brand'].unique()), help="Choose Brand")
+        brand = st.selectbox("Brand", sorted(data['brand'].dropna().unique()), help="Choose Brand")
         os_choice = st.selectbox("Operating System", sorted(data['OS'].dropna().unique()), help="Select OS")
         chipset = st.selectbox("Chipset", sorted(data['Chipset'].dropna().unique()), help="Select Chipset")
 
@@ -96,9 +103,17 @@ try:
     result_placeholder = st.empty()
 
     if predict_btn:
-        input_data = pd.DataFrame([[ram, battery, camera, weight]],
-                                  columns=['RAM_GB', 'battery_mAh', 'primary_camera_MP', 'weight_g'])
+        input_dict = {
+            'RAM_GB': ram,
+            'battery_mAh': battery,
+            'primary_camera_MP': camera,
+            'weight_g': weight
+        }
+
+        # ترتيب الأعمدة حسب ما اتدرب الموديل عليه
+        input_data = pd.DataFrame([{f: input_dict[f] for f in features}])
         prediction = model.predict(input_data)[0]
+
         result_placeholder.success(f"### Estimated Value: €{prediction:,.2f}")
         result_placeholder.info("This price is based on 2026 market trends learned by the AI.")
 
@@ -106,7 +121,7 @@ except Exception as e:
     st.error(f"Error loading model or data: {e}")
     st.info("Make sure 'mobile_model.pkl' and 'mobile_data_cleaned_2026.csv' are in the same folder.")
 
-# 4️⃣ Footer احترافي مع اسمك وروابطك
+# Footer احترافي مع اسمك وروابطك
 st.write("---")
 st.markdown("""
 Developed by **Goda Emad** |  
