@@ -1,71 +1,48 @@
 import streamlit as st
 import pandas as pd
+import joblib
 
-# 1. إعدادات الصفحة (تظهر في تبويب المتصفح)
-st.set_page_config(
-    page_title="Mobile Price Predictor 2026",
-    page_icon="📱",
-    layout="wide"
-)
+# تصميم احترافي
+st.set_page_config(page_title="Mobile Intelligence 2026", layout="wide", initial_sidebar_state="expanded")
 
-# 2. دالة تحميل البيانات مع خاصية الـ Cache لتسريع الموقع
-@st.cache_data
-def load_data():
-    # تأكد أن ملف الـ CSV مرفوع في نفس الفولدر على GitHub
+# إضافة CSS مخصص لجعل الموقع يبدو كأنه تطبيق مدفوع
+st.markdown("""
+    <style>
+    .main { background-color: #f5f7f9; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
+    .prediction-box { padding: 20px; border-radius: 10px; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    </style>
+    """, unsafe_allow_html=True)
+
+# استدعاء الملفات
+@st.cache_resource
+def load_all():
     df = pd.read_csv('mobile_data_cleaned_2026.csv')
-    # تنظيف أسماء الأعمدة من أي مسافات زائدة
-    df.columns = df.columns.str.strip()
-    return df
+    model = joblib.load('mobile_model.pkl')
+    return df, model
 
-try:
-    df = load_data()
+df, model = load_all()
 
-    # --- الشريط الجانبي (Sidebar) ---
-    st.sidebar.header("🔍 Search & Filter")
-    
-    # فلتر البحث بالاسم
-    search_query = st.sidebar.text_input("Search Mobile Name", "")
-    
-    # فلتر البراند
-    brands = ["All Brands"] + sorted(df['brand'].unique().tolist())
-    selected_brand = st.sidebar.selectbox("Select Brand", brands)
-    
-    # --- منطق الفلترة ---
-    filtered_df = df.copy()
-    if selected_brand != "All Brands":
-        filtered_df = filtered_df[filtered_df['brand'] == selected_brand]
-    
-    if search_query:
-        filtered_df = filtered_df[filtered_df['model'].str.contains(search_query, case=False, na=False)]
-
-    # --- الواجهة الرئيسية ---
-    st.title("📱 Mobile Discovery Dashboard")
-    st.markdown(f"Currently exploring **{len(filtered_df)}** devices")
-
-    # عرض النتائج في شكل كروت (Grid)
-    # سنعرض أول 40 نتيجة فقط لتحسين الأداء ومنع التهنيج
-    display_limit = 40
-    results_to_show = filtered_df.head(display_limit)
-
-    if not results_to_show.empty:
-        cols = st.columns(4) # تقسيم الشاشة لـ 4 أعمدة
-        for i, (index, row) in enumerate(results_to_show.iterrows()):
-            with cols[i % 4]:
-                # عرض الصورة
-                st.image(row['img_url'], use_container_width=True)
-                # اسم الموبايل وسعره
-                st.subheader(f"{row['brand']} {row['model']}")
-                st.write(f"💰 **Price:** {row['approx_price_EUR']} EUR")
-                # مواصفات إضافية في شكل كابشن
-                st.caption(f"🔋 {row['battery_mAh']} mAh | 🧠 {row['RAM_GB']}GB RAM")
-                st.divider()
-    else:
-        st.warning("No devices found matching your criteria. Try adjusting the filters!")
-
-except Exception as e:
-    st.error(f"Error loading data: {e}")
-    st.info("Make sure 'mobile_data_cleaned_2026.csv' is uploaded to your GitHub repository.")
-
-# --- تذييل الصفحة ---
+# هيدر الموقع
+st.title("🚀 Mobile Intelligence Hub")
 st.markdown("---")
-st.caption("Developed by Goda Emad | Data Science Project 2026")
+
+# تقسيم الصفحة (يسار للتوقع - يمين للإحصائيات)
+left_col, right_col = st.columns([1, 2])
+
+with left_col:
+    st.subheader("🔮 Price Predictor")
+    with st.container():
+        ram = st.select_slider("RAM Capacity (GB)", options=[1, 2, 4, 6, 8, 12, 16], value=8)
+        battery = st.slider("Battery (mAh)", 1000, 7000, 4500)
+        camera = st.number_input("Main Camera (MP)", 2, 200, 48)
+        weight = st.number_input("Device Weight (g)", 100, 500, 190)
+        
+        if st.button("Calculate Market Value"):
+            res = model.predict([[battery, ram, weight, camera]])
+            st.success(f"Estimated Value: €{res[0]:.2f}")
+
+with right_col:
+    st.subheader("📊 Market Insights")
+    # إضافة رسوم بيانية توضح توزيع الأسعار في الـ 1943 موبايل
+    st.bar_chart(df['brand'].value_counts().head(10))
