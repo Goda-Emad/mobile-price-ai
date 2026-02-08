@@ -3,23 +3,24 @@ import pandas as pd
 import joblib
 import altair as alt
 from sklearn.preprocessing import LabelEncoder
+import numpy as np
 
 # ================== 1️⃣ إعدادات الصفحة ==================
 st.set_page_config(page_title="AI Mobile Price Hub", page_icon="📱", layout="wide")
 
-# ================== 2️⃣ CSS للواجهة ==================
+# ================== 2️⃣ CSS للواجهة (Light Mode) ==================
 st.markdown("""
 <style>
 .stApp {
-    background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+    background: linear-gradient(rgba(255,255,255,0.8), rgba(255,255,255,0.8)),
                 url("https://images.unsplash.com/photo-1616348436168-de43ad0db179?auto=format&fit=crop&q=80&w=2000");
     background-size: cover;
     background-position: center;
-    color: white;
+    color: black;
 }
-h1,h2,h3 { color:white !important; }
+h1,h2,h3 { color:black !important; }
 .stSlider label, .stNumberInput label, .stSelectbox label { 
-    color:white !important; font-weight:bold; 
+    color:black !important; font-weight:bold; 
 }
 .stButton>button {
     background-color: #4CAF50; color: white; border-radius:20px; width:100%; border:none; transition:0.3s;
@@ -41,13 +42,12 @@ data = load_data()
 model = load_model()
 features = model.feature_names_in_
 
-# ================== 4️⃣ LabelEncoders للـ categorical features ==================
-# لو قيم جديدة مش موجودة في dataset، نستخدم طريقة آمنة
+# ================== 4️⃣ LabelEncoders آمن ==================
 def safe_label_encoder(column, value):
     le = LabelEncoder()
     le.fit(data[column])
     if value not in le.classes_:
-        le.classes_ = list(le.classes_) + [value]
+        le.classes_ = np.append(le.classes_, value)
     return le.transform([value])[0]
 
 # ================== 5️⃣ واجهة المستخدم ==================
@@ -61,7 +61,6 @@ st.info("""
 3️⃣ Prediction Engine: Converts specs into a market price instantly.
 """)
 
-# تقسيم الشاشة
 col1, col2 = st.columns([1, 1.5])
 
 with col1:
@@ -90,7 +89,7 @@ with col2:
 
 result_placeholder = st.empty()
 
-# ================== 6️⃣ Prediction + Image ==================
+# ================== 6️⃣ Prediction + أقرب صورة ==================
 if predict_btn:
     # تجهيز البيانات للـ prediction
     input_dict = {
@@ -115,16 +114,22 @@ if predict_btn:
         st.info("Price based on 2026 market trends learned by the AI.")
     
     with col_image:
-        # صورة الموبايل لو موجودة في dataset
-        matching_img = data.loc[
-            (data['RAM_GB']==ram) &
-            (data['battery_mAh']==battery) &
-            (data['primary_camera_MP']==camera) &
-            (data['weight_g']==weight),
-            'img_url'
+        # ===== أقرب صورة ممكنة =====
+        subset = data[
+            (data['brand'] == brand) &
+            (data['OS'] == os_choice) &
+            (data['Chipset'] == chipset) &
+            data['img_url'].notna()
         ]
-        if not matching_img.empty:
-            st.image(matching_img.values[0], use_column_width=True)
+        if not subset.empty:
+            subset['distance'] = (
+                abs(subset['RAM_GB'] - ram) +
+                abs(subset['battery_mAh'] - battery)/1000 +
+                abs(subset['primary_camera_MP'] - camera)/10 +
+                abs(subset['weight_g'] - weight)/50
+            )
+            best_match = subset.loc[subset['distance'].idxmin(), 'img_url']
+            st.image(best_match, use_column_width=True)
         else:
             st.image("https://via.placeholder.com/250x400.png?text=No+Image", use_column_width=True)
 
