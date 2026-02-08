@@ -1,14 +1,14 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import altair as alt
+import plotly.express as px
 from sklearn.preprocessing import LabelEncoder
 import numpy as np
 
-# ================== 1️⃣ إعدادات الصفحة ==================
+# ================== إعدادات الصفحة ==================
 st.set_page_config(page_title="AI Mobile Price Hub", page_icon="📱", layout="wide")
 
-# ================== 2️⃣ CSS للواجهة (Light Mode) ==================
+# ================== CSS Light Mode ==================
 st.markdown("""
 <style>
 .stApp {
@@ -29,7 +29,7 @@ h1,h2,h3 { color:black !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ================== 3️⃣ تحميل البيانات والموديل ==================
+# ================== تحميل البيانات والموديل ==================
 @st.cache_data
 def load_data():
     return pd.read_csv("mobile_data_cleaned_2026.csv")
@@ -42,7 +42,7 @@ data = load_data()
 model = load_model()
 features = model.feature_names_in_
 
-# ================== 4️⃣ LabelEncoders آمن ==================
+# ================== LabelEncoder آمن ==================
 def safe_label_encoder(column, value):
     le = LabelEncoder()
     le.fit(data[column])
@@ -50,7 +50,7 @@ def safe_label_encoder(column, value):
         le.classes_ = np.append(le.classes_, value)
     return le.transform([value])[0]
 
-# ================== 5️⃣ واجهة المستخدم ==================
+# ================== واجهة المستخدم ==================
 st.title("📱 AI Mobile Valuation Hub")
 st.markdown("### Predict market value based on 1,943 analyzed devices")
 st.write("---")
@@ -78,26 +78,32 @@ with col1:
 
 with col2:
     st.subheader("📊 Market Insights")
-    # ===== تفاعلية =====
+    
+    # ===== تفاعلية وملونة بالـ Plotly =====
     categorical_cols = ['brand', 'OS', 'Chipset']
     selected_col = st.selectbox("Select Feature to Explore", categorical_cols)
     
     top_values = data[selected_col].value_counts().head(10).reset_index()
-    top_values.columns = [selected_col,'Count']
+    top_values.columns = [selected_col, 'Count']
     
-    chart = alt.Chart(top_values).mark_bar(color="#4CAF50").encode(
-        x=alt.X(selected_col, sort='-y'),
-        y='Count',
-        tooltip=[selected_col, 'Count']
-    ).interactive().properties(width=500, height=400)
+    fig = px.bar(
+        top_values, 
+        x=selected_col, 
+        y='Count', 
+        color=selected_col,  # لكل فئة لون مختلف
+        text='Count',
+        title=f"Top 10 {selected_col} distribution",
+        color_discrete_sequence=px.colors.qualitative.Pastel
+    )
+    fig.update_layout(showlegend=False)
+    fig.update_traces(textposition='outside')
     
-    st.altair_chart(chart, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
 
 result_placeholder = st.empty()
 
-# ================== 6️⃣ Prediction + أقرب صورة دائمًا ==================
+# ================== Prediction + أقرب صورة دائمًا ==================
 if predict_btn:
-    # تجهيز البيانات للـ prediction
     input_dict = {
         'RAM_GB': ram,
         'battery_mAh': battery,
@@ -115,11 +121,10 @@ if predict_btn:
     
     with col_price:
         st.success(f"### Estimated Value: €{prediction:,.2f}")
-        st.code(f"{prediction:.2f} €", language='text')  # copy price
+        st.code(f"{prediction:.2f} €", language='text')
         st.info("Price based on 2026 market trends learned by the AI.")
     
     with col_image:
-        # ===== أقرب صورة لأي موبايل =====
         subset = data[data['img_url'].notna()].copy()
         subset['distance'] = (
             abs(subset['RAM_GB'] - ram) +
@@ -130,7 +135,7 @@ if predict_btn:
         best_match = subset.loc[subset['distance'].idxmin(), 'img_url']
         st.image(best_match, use_column_width=True)
 
-# ================== 7️⃣ Footer ==================
+# ================== Footer ==================
 st.write("---")
 st.markdown("""
 Developed by **Goda Emad** |  
