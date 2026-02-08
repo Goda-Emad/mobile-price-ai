@@ -78,18 +78,24 @@ with col1:
 
 with col2:
     st.subheader("📊 Market Insights")
-    top_brands = data['brand'].value_counts().head(10).reset_index()
-    top_brands.columns = ['Brand','Count']
-    chart = alt.Chart(top_brands).mark_bar(color="#4CAF50").encode(
-        x=alt.X('Brand', sort='-y'),
+    # ===== تفاعلية =====
+    categorical_cols = ['brand', 'OS', 'Chipset']
+    selected_col = st.selectbox("Select Feature to Explore", categorical_cols)
+    
+    top_values = data[selected_col].value_counts().head(10).reset_index()
+    top_values.columns = [selected_col,'Count']
+    
+    chart = alt.Chart(top_values).mark_bar(color="#4CAF50").encode(
+        x=alt.X(selected_col, sort='-y'),
         y='Count',
-        tooltip=['Brand','Count']
+        tooltip=[selected_col, 'Count']
     ).interactive().properties(width=500, height=400)
+    
     st.altair_chart(chart, use_container_width=True)
 
 result_placeholder = st.empty()
 
-# ================== 6️⃣ Prediction + أقرب صورة ==================
+# ================== 6️⃣ Prediction + أقرب صورة دائمًا ==================
 if predict_btn:
     # تجهيز البيانات للـ prediction
     input_dict = {
@@ -105,7 +111,6 @@ if predict_btn:
     input_data = pd.DataFrame([{f: input_dict[f] for f in features}])
     prediction = model.predict(input_data)[0]
     
-    # عمودين: سعر + صورة
     col_price, col_image = st.columns([1,1])
     
     with col_price:
@@ -114,24 +119,16 @@ if predict_btn:
         st.info("Price based on 2026 market trends learned by the AI.")
     
     with col_image:
-        # ===== أقرب صورة ممكنة =====
-        subset = data[
-            (data['brand'] == brand) &
-            (data['OS'] == os_choice) &
-            (data['Chipset'] == chipset) &
-            data['img_url'].notna()
-        ]
-        if not subset.empty:
-            subset['distance'] = (
-                abs(subset['RAM_GB'] - ram) +
-                abs(subset['battery_mAh'] - battery)/1000 +
-                abs(subset['primary_camera_MP'] - camera)/10 +
-                abs(subset['weight_g'] - weight)/50
-            )
-            best_match = subset.loc[subset['distance'].idxmin(), 'img_url']
-            st.image(best_match, use_column_width=True)
-        else:
-            st.image("https://via.placeholder.com/250x400.png?text=No+Image", use_column_width=True)
+        # ===== أقرب صورة لأي موبايل =====
+        subset = data[data['img_url'].notna()].copy()
+        subset['distance'] = (
+            abs(subset['RAM_GB'] - ram) +
+            abs(subset['battery_mAh'] - battery)/1000 +
+            abs(subset['primary_camera_MP'] - camera)/10 +
+            abs(subset['weight_g'] - weight)/50
+        )
+        best_match = subset.loc[subset['distance'].idxmin(), 'img_url']
+        st.image(best_match, use_column_width=True)
 
 # ================== 7️⃣ Footer ==================
 st.write("---")
